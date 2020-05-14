@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 class StackOperation:
@@ -19,7 +19,7 @@ class StackOperation:
                stack[0: len(stack)-1])
 
 
-# In[2]:
+# In[ ]:
 
 
 class Transition:
@@ -35,7 +35,7 @@ class Transition:
         return self.advance_input_operation != None
 
 
-# In[3]:
+# In[ ]:
 
 
 class TransitionTable:
@@ -75,7 +75,7 @@ class TransitionTable:
             print(row_symbol + '( ' + row_names + ')')
 
 
-# In[4]:
+# In[ ]:
 
 
 class PushDownAutomaton:
