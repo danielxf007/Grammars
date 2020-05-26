@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[21]:
 
 
 import PDA as pda
 
 
-# In[14]:
+# In[22]:
 
 
 class PDACreator:
@@ -57,6 +57,12 @@ class PDACreator:
             if self.is_terminal(symbol):
                 terminals.add(symbol)
         return terminals
+    
+    def get_productions_with_numbers(self, numbers):
+        productions_with_numbers = []
+        for number in numbers:
+            productions_with_numbers.append(self.productions[number])
+        return productions_with_numbers
     
     def is_s_grammar(self):
         s_grammar = (0, None)
@@ -114,7 +120,8 @@ class PDACreator:
             productions_number_same_l_side = self.get_productions_number_same_non_terminal_l_side(
             productions_same_non_terminal_l_side)
             if not self.selection_sets_are_disjoint(productions_number_same_l_side):
-                q_grammar = (1, self.get_selection_sets_not_disjoint(productions_number_same_l_side))
+                q_grammar = (1, self.get_productions_with_numbers(self.get_selection_sets_not_disjoint(
+                    productions_number_same_l_side))) # selection_sets are joint
                 break
             for production in productions_same_non_terminal_l_side:
                 if self.is_terminal(production.right_side[0]):
@@ -137,7 +144,8 @@ class PDACreator:
             productions_number_same_l_side = self.get_productions_number_same_non_terminal_l_side(
             productions_same_non_terminal_l_side)
             if not self.selection_sets_are_disjoint(productions_number_same_l_side):
-                ll_grammar = (1, self.get_selection_sets_not_disjoint(productions_number_same_l_side))
+                ll_grammar = (1, self.get_productions_with_numbers(self.get_selection_sets_not_disjoint(
+                    productions_number_same_l_side)))
                 break
         return ll_grammar
     
@@ -305,6 +313,7 @@ class PDACreator:
         return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, 'S0', table)
     
     def create_PDA(self):
+        push_down_automata = None
         result = []
         input_symbols = self.get_input_symbols_PDA()
         symbols_in_PDA = self.get_symbols_in_PDA()
@@ -315,26 +324,41 @@ class PDACreator:
         
         if s_grammar[0] == 0:
             transition_table = self.get_transition_table_s_grammar(symbols_in_PDA, input_symbols)
-            transition_table.print_table()
             push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
                                                       initial_configuration, transition_table)
             result.append(('It is S grammar', push_down_automata, True))
-        else:
-            result.append(('It is not S grammar for this production: ', s_grammar[1], False))
+        elif s_grammar[0] == 1:
+            result.append(('It is not S grammar, same non terminal starts with same terminal: ', s_grammar[1], False))
+        elif s_grammar[0] == 2:
+            result.append(('It is not S grammar, production starts with a non terminal: ', [s_grammar[1]], False))
+        elif s_grammar[0] == 3:
+            result.append(('It is not S grammar, production is nullable: ', [s_grammar[1]], False))
+            
         if q_grammar[0] == 0:
             transition_table = self.get_transition_table_q_grammar(symbols_in_PDA, input_symbols)
-            push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
-                                                        initial_configuration, transition_table)
-            result.append(('It is Q grammar', push_down_automata, True))
-        else:
-            result.append(('It is not Q grammar for this production: ', q_grammar[1], False))
+            if not push_down_automata:
+                push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
+                                                           initial_configuration, transition_table)
+                result.append(('It is Q grammar', push_down_automata, True))
+            else:
+                result.append(('It is Q grammar', None, True))
+        elif q_grammar[0] == 1:
+            result.append(('It is not Q grammar, selection sets of these productions are not disjoint: ', q_grammar[1], False))
+        elif q_grammar[0] == 2:
+            result.append(('It is not Q grammar, same non terminal starts with same terminal: ', [q_grammar[1]], False))
+        elif q_grammar[0] == 3:
+            result.append(('It is not Q grammar, production starts with a non terminal: ', [q_grammar[1]], False))
         if ll_grammar[0] == 0:
             transition_table = self.get_transition_table_ll_grammar(symbols_in_PDA, input_symbols)
-            push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
-                                                        initial_configuration, transition_table)
-            result.append(('It is LL grammar', push_down_automata, True))
-        else:
-            result.append(('It is not LL grammar for this production: ', ll_grammar[1], False))
+            if not push_down_automata:
+                push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
+                                                           initial_configuration, transition_table)
+                result.append(('It is LL grammar', push_down_automata, True))
+            else:
+                result.append(('It is LL grammar', None, True))
+            
+        elif ll_grammar[0] == 1:
+            result.append(('It is not LL grammar, selection sets of these productions are not disjoint: ', ll_grammar[1], False))
         
         return result
 
