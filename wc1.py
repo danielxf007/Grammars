@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[5]:
 
 
 import tkinter as tk
@@ -9,7 +9,7 @@ from tkinter import ttk
 from tkinter import messagebox
 
 
-# In[4]:
+# In[6]:
 
 
 def create_main_window(title, dimensions, resizable):
@@ -26,7 +26,10 @@ def create_text_box(window, t_height, t_width):
     return tk.Text(window, height=t_height, width=t_width)
 
 def create_entry(window, txt_variable, e_width):
-    return ttk.Entry(window, textvariable=txtVariable, width=eWidth)
+    return ttk.Entry(window, textvariable=txt_variable, width=e_width)
+
+def create_label(window, txt_variable):
+    return tk.Label(window, text=txt_variable)
 
 def show_error_message(message_content):
     tk.messagebox.showerror("Error", message_content)

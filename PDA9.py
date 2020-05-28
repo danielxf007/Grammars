@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[29]:
 
 
 class StackOperation:
@@ -19,7 +19,7 @@ class StackOperation:
                stack[0: len(stack)-1])
 
 
-# In[2]:
+# In[30]:
 
 
 class Transition:
@@ -35,7 +35,7 @@ class Transition:
         return self.advance_input_operation != None
 
 
-# In[3]:
+# In[31]:
 
 
 class TransitionTable:
@@ -75,7 +75,7 @@ class TransitionTable:
             print(row_symbol + '( ' + row_names + ')')
 
 
-# In[4]:
+# In[32]:
 
 
 class PushDownAutomaton:
@@ -87,14 +87,17 @@ class PushDownAutomaton:
         self.acceptance_transition_name = acceptance_transition_name
         self.reject_transition_name = reject_transition_name
         self.transition_table = transition_table
-        self.stack = init_config
+        self.init_config = init_config
+        self.stack = None
     
     def belongs_to_language(self, symbol_arr):
-        is_well_written = self.is_well_written(symbol_arr)
+        if not self.symbols_in_language(symbol_arr):
+            return False
         iterator = iter(symbol_arr)
         belongs = False
         input_symbol = next(iterator)
-        while is_well_written:
+        self.stack = self.init_config.copy()
+        while True:
             try:
                 top_symbol = self.get_top_symbol()
                 transition = self.transition_table.get_transition(top_symbol, input_symbol)
@@ -115,16 +118,13 @@ class PushDownAutomaton:
     def symbol_in_language(self, symbol):
         return symbol in self.symbols
     
-    def is_well_written(self, symbol_arr):
-        well_written = False
-        for index in range(0, len(symbol_arr)):
-            if self.end_of_sequence(symbol_arr[index]):
-                well_written = (index == len(symbol_arr)-1)
+    def symbols_in_language(self, symbol_arr):
+        in_language = True
+        for symbol in symbol_arr:
+            if not self.symbol_in_language(symbol):
+                in_language = False
                 break
-            elif not self.symbol_in_language(symbol_arr[index]):
-                break
-        return well_written
-                
+        return in_language
             
     def get_top_symbol(self):
         return self.stack[len(self.stack)-1]

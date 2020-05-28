@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[21]:
+# In[25]:
 
 
-import PDA as pda
+import PDA9 as pda
 
 
-# In[22]:
+# In[26]:
 
 
 class PDACreator:
@@ -34,7 +34,7 @@ class PDACreator:
     def get_productions_same_non_terminal_l_side(self, non_terminal):
         productions_same_l_side = []
         for production in self.productions:
-            if production.left_side == non_terminal and not production in productions_same_l_side:
+            if production.left_side == non_terminal:
                 productions_same_l_side.append(production)
         return productions_same_l_side
     
@@ -102,15 +102,20 @@ class PDACreator:
         sets = set()
         for number in production_numbers:
             index = production_numbers.index(number)+1
-            current_set = self.selection_set[number]
             while(index < len(production_numbers)):
+                current_set = self.selection_set[number]
                 current_set = current_set.intersection(self.selection_set[production_numbers[index]])
                 if current_set != set():
                     sets.add(number)
-                    sets.add(index)
-                current_set = self.selection_set[number]
+                    sets.add(self.selection_set.index(self.selection_set[production_numbers[index]]))
                 index +=1
         return list(sets)
+    
+    def get_selection_sets_with_numbers(self, numbers):
+        sets = []
+        for number in numbers:
+            sets.append(self.selection_set[number])
+        return sets
     
     def is_q_grammar(self):
         q_grammar = (0, None)
@@ -120,20 +125,22 @@ class PDACreator:
             productions_number_same_l_side = self.get_productions_number_same_non_terminal_l_side(
             productions_same_non_terminal_l_side)
             if not self.selection_sets_are_disjoint(productions_number_same_l_side):
-                q_grammar = (1, self.get_productions_with_numbers(self.get_selection_sets_not_disjoint(
-                    productions_number_same_l_side))) # selection_sets are joint
+                numbers = self.get_selection_sets_not_disjoint(productions_number_same_l_side)
+                productions_with_numbers = self.get_productions_with_numbers(numbers)
+                selection_sets_with_numbers = self.get_selection_sets_with_numbers(numbers)
+                q_grammar = (4, list(zip(productions_with_numbers, selection_sets_with_numbers))) # selection_sets are joint
                 break
             for production in productions_same_non_terminal_l_side:
                 if self.is_terminal(production.right_side[0]):
                     if not production.right_side[0] in terminals:
                         terminals.append(production.right_side[0])
                     else:
-                        q_grammar = (2, self.get_productions_start_with_terminal(production.right_side[0],
+                        q_grammar = (1, self.get_productions_start_with_terminal(production.right_side[0],
                                                                                  productions_same_non_terminal_l_side))
                         break
                 else:
                     if self.is_non_terminal(production.right_side[0]):
-                        q_grammar = (3, production) # production starts with non_terminal
+                        q_grammar = (2, production) # production starts with non_terminal
                         break
         return q_grammar
     
@@ -144,8 +151,10 @@ class PDACreator:
             productions_number_same_l_side = self.get_productions_number_same_non_terminal_l_side(
             productions_same_non_terminal_l_side)
             if not self.selection_sets_are_disjoint(productions_number_same_l_side):
-                ll_grammar = (1, self.get_productions_with_numbers(self.get_selection_sets_not_disjoint(
-                    productions_number_same_l_side)))
+                numbers = self.get_selection_sets_not_disjoint(productions_number_same_l_side)
+                productions_with_numbers = self.get_productions_with_numbers(numbers)
+                selection_sets_with_numbers = self.get_selection_sets_with_numbers(numbers)
+                ll_grammar = (4, list(zip(productions_with_numbers, selection_sets_with_numbers)))
                 break
         return ll_grammar
     
@@ -326,39 +335,40 @@ class PDACreator:
             transition_table = self.get_transition_table_s_grammar(symbols_in_PDA, input_symbols)
             push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
                                                       initial_configuration, transition_table)
-            result.append(('It is S grammar', push_down_automata, True))
+            result.append(('It is S grammar', push_down_automata, 0))
         elif s_grammar[0] == 1:
-            result.append(('It is not S grammar, same non terminal starts with same terminal: ', s_grammar[1], False))
+            result.append(('It is not S grammar, same non terminal starts with same terminal: ', s_grammar[1], 1))
         elif s_grammar[0] == 2:
-            result.append(('It is not S grammar, production starts with a non terminal: ', [s_grammar[1]], False))
+            result.append(('It is not S grammar, production starts with a non terminal: ', s_grammar[1], 2))
         elif s_grammar[0] == 3:
-            result.append(('It is not S grammar, production is nullable: ', [s_grammar[1]], False))
+            result.append(('It is not S grammar, production is nullable: ', s_grammar[1], 3))
             
         if q_grammar[0] == 0:
             transition_table = self.get_transition_table_q_grammar(symbols_in_PDA, input_symbols)
             if not push_down_automata:
                 push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
                                                            initial_configuration, transition_table)
-                result.append(('It is Q grammar', push_down_automata, True))
+                result.append(('It is Q grammar', push_down_automata, 0))
             else:
-                result.append(('It is Q grammar', None, True))
+                result.append(('It is Q grammar', None, 0))
         elif q_grammar[0] == 1:
-            result.append(('It is not Q grammar, selection sets of these productions are not disjoint: ', q_grammar[1], False))
+            result.append(('It is not Q grammar, same non terminal starts with same terminal: ', q_grammar[1], 1))
         elif q_grammar[0] == 2:
-            result.append(('It is not Q grammar, same non terminal starts with same terminal: ', [q_grammar[1]], False))
-        elif q_grammar[0] == 3:
-            result.append(('It is not Q grammar, production starts with a non terminal: ', [q_grammar[1]], False))
+            result.append(('It is not Q grammar, production starts with a non terminal: ', q_grammar[1], 2))
+        elif q_grammar[0] == 4:
+            result.append(('It is not Q grammar, selection sets of these productions are not disjoint: ', q_grammar[1], 4))
+
         if ll_grammar[0] == 0:
             transition_table = self.get_transition_table_ll_grammar(symbols_in_PDA, input_symbols)
             if not push_down_automata:
                 push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
                                                            initial_configuration, transition_table)
-                result.append(('It is LL grammar', push_down_automata, True))
+                result.append(('It is LL grammar', push_down_automata, 0))
             else:
-                result.append(('It is LL grammar', None, True))
+                result.append(('It is LL grammar', None, 0))
             
-        elif ll_grammar[0] == 1:
-            result.append(('It is not LL grammar, selection sets of these productions are not disjoint: ', ll_grammar[1], False))
+        elif ll_grammar[0] == 4:
+            result.append(('It is not LL grammar, selection sets of these productions are not disjoint: ', ll_grammar[1], 4))
         
         return result
 
