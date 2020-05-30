@@ -1,25 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
-class Production:
-    def __init__(self, left_side, right_side):
-        self.left_side = left_side #Non terminal of the form <str>
-        self.right_side = right_side #Array of terminals and non terminals, empty sequence 
-    
-    def get_left_side(self):
-        return self.left_side
-    
-    def get_right_side(self):
-        return self.right_side
-
-
-# In[2]:
+# In[104]:
 
 
 class ProductionSet:
+    
     def __init__(self, initial_non_terminal, null_sequence_symbol, end_of_sequence_symbol, production_arr, non_terminal_arr):
         self.initial_non_terminal = initial_non_terminal
         self.null_sequence_symbol = null_sequence_symbol
@@ -47,96 +33,39 @@ class ProductionSet:
     def production_has_null_sequence_on_right_side(self, production):
         return production.right_side[0] == self.null_sequence_symbol
     
-    def get_non_terminal_set_from_productions(self, productions):
-        non_terminals = set()
-        for production in productions:
-            if not production.left_side in non_terminals:
-                non_terminals.add(production.left_side)
-        return non_terminals
-    
-    def non_terminals_can_not_be_nullable(self, non_terminals, no_nullable_non_terminals):
-        nullable = True
-        for non_terminal in non_terminals:
-            if non_terminals in  no_nullable_non_terminals:
-                nullable = False
-                break
-        return nullable
-    
-    def non_terminal_in_productions_left_side(self, non_terminal, productions):
-        in_productions = False
-        for production in productions:
-            if production.left_side == non_terminal:
-                in_productions = True
-                break
-        return in_productions
-    
-    def get_nullables_base_case(self):
-        nullables = set()
-        for production in self.production_arr:
-            if self.production_has_null_sequence_on_right_side(production):
-                nullables.add(production.left_side)
-        return nullables
-    
-    def get_suspected_productions(self, nullable_non_terminals, no_nullable_non_terminals):
-        suspected_productions = []
-        for production in self.production_arr:
-            if (self.only_right_side_of_non_terminals(production) and not production.left_side in nullable_non_terminals and
-                not production.left_side in no_nullable_non_terminals):
-                suspected_productions.append(production)
-        return suspected_productions
-    
-    def get_suspected_non_terminals(self, suspected_productions):
-        suspected_non_terminals = set()
-        for non_terminal in self.non_terminal_arr:
-            for production in suspected_productions:
-                if production.left_side == non_terminal:
-                    suspected_non_terminals.add(non_terminal)
+    def production_is_nullable(self, production, nullable_non_terminals):
+        if self.production_has_null_sequence_on_right_side(production):
+            return True
+        is_nullable = True
+        if self.only_right_side_of_non_terminals(production):
+            for symbol in production.right_side:
+                if not symbol in nullable_non_terminals:
+                    is_nullable = False
                     break
-        return suspected_non_terminals
-    
-    def get_no_nullable_non_terminals(self, nullable_non_terminals, suspected_non_terminals):
-        no_nullable_non_terminals = set()
-        for non_terminal in self.non_terminal_arr:
-            if not non_terminal in nullable_non_terminals and not non_terminal in suspected_non_terminals:
-                no_nullable_non_terminals.add(non_terminal)
-        return no_nullable_non_terminals
+        else:
+            is_nullable = False
+        return is_nullable
     
     def get_nullable_non_terminals(self):
-        nullable_non_terminals = self.get_nullables_base_case()
-        suspected_p = self.get_suspected_productions(nullable_non_terminals, set())
-        suspected_non_terminals = self.get_suspected_non_terminals(suspected_p)
-        no_nullable_non_terminals = self.get_no_nullable_non_terminals(nullable_non_terminals, suspected_non_terminals)
-        while suspected_non_terminals:
-            for production in suspected_p:
-                all_nullables = True
-                for symbol in production.right_side:
-                    if symbol in no_nullable_non_terminals:
-                        no_nullable_non_terminals.add(production.left_side)
-                        all_nullables = False
-                        break
-                    if symbol in suspected_non_terminals:
-                        all_nullables = False
-                        break
-                if all_nullables:
-                    nullable_non_terminals.add(production.left_side)
-            suspected_p = self.get_suspected_productions(nullable_non_terminals, no_nullable_non_terminals)
-            suspected_non_terminals = self.get_suspected_non_terminals(suspected_p)                         
+        nullable_non_terminals = []
+        suspected_productions = self.production_arr.copy()
+        suspected_non_terminals = self.non_terminal_arr.copy()
+        while suspected_productions:
+            n_suspected_production_before = len(suspected_productions)
+            for production in suspected_productions:
+                if self.production_is_nullable(production, nullable_non_terminals):
+                    if not production.left_side in nullable_non_terminals:
+                        nullable_non_terminals.append(production.left_side)
+                    suspected_productions.remove(production)
+            n_suspected_production_after = len(suspected_productions)
+            if n_suspected_production_before == n_suspected_production_after:
+                break
         return nullable_non_terminals
     
-    def right_side_is_nullable(self, right_side, nullable_non_terminals):
-        nullable = True
-        if right_side[0] == self.null_sequence_symbol:
-            return nullable
-        for symbol in right_side:
-            if not symbol in nullable_non_terminals:
-                nullable = False
-                break
-        return nullable
-            
     def get_nullable_productions(self, nullable_non_terminals):
         production_indexes = []
         for index in range(0, len(self.production_arr)):
-            if self.right_side_is_nullable(self.production_arr[index].right_side, nullable_non_terminals):
+            if self.production_is_nullable(self.production_arr[index], nullable_non_terminals):
                 production_indexes.append(index)
         return production_indexes
     
@@ -147,24 +76,19 @@ class ProductionSet:
                 productions.append(production)
         return productions
     
-    def get_firsts_base_cases(self, nullable_non_terminals):
-        base_cases = []
-        for symbol in self.non_terminal_arr:
-            productions = self.get_productions_same_non_terminal_l_side(symbol)
-            firsts = set()
-            for production in productions:
-                if self.is_non_terminal(production.right_side[0]):
-                    for element in production.right_side:
-                        if element in nullable_non_terminals:
-                                firsts.add(element)
-                        else:
-                            firsts.add(element)
-                            break
-                elif self.is_terminal(production.right_side[0]):
-                    firsts.add(production.right_side[0])
-            base_cases.append([symbol, firsts])
+    def replace_non_terminals(self, base_cases):
+        while True:
+            for case in base_cases:
+                non_terminals_to_replace = list(filter(lambda x: self.is_non_terminal(x), case[1]))
+                replacements = list(filter(lambda x: x[0] in non_terminals_to_replace, base_cases))
+                for non_terminal in non_terminals_to_replace:
+                    case[1].discard(non_terminal)
+                    if replacements:
+                        case[1] = case[1].union(replacements.pop()[1])
+            if self.all_non_terminals_replaced(base_cases):
+                break
         return base_cases
-    
+
     def all_non_terminals_replaced(self, base_cases):
         all_replaced = True
         for case in base_cases:
@@ -173,6 +97,26 @@ class ProductionSet:
                     all_replaced = False
                     break
         return all_replaced
+    
+    def get_set_of_firsts(self, nullable_non_terminals):
+        set_of_firsts = []
+        for non_terminal in self.non_terminal_arr:
+            production_same_l_side = self.get_productions_same_non_terminal_l_side(non_terminal)
+            firsts = set()
+            for production in production_same_l_side:
+                for symbol in production.right_side:
+                    if self.is_terminal(symbol):
+                        firsts.add(symbol)
+                        break
+                    elif self.is_non_terminal(symbol):
+                        if not symbol in nullable_non_terminals:
+                            firsts.add(symbol)
+                            break
+                        else:
+                            firsts.add(symbol)
+            set_of_firsts.append([non_terminal, firsts])
+        
+        return self.replace_non_terminals(set_of_firsts)
     
     def get_set_of_firsts_for_productions(self, nullable_non_terminals, set_of_firsts_for_non_terminals):
         set_of_firsts = []
@@ -235,18 +179,6 @@ class ProductionSet:
             nexts.discard(non_terminal)
             base_cases.append([non_terminal, nexts])
                 
-        return base_cases
-    
-    def replace_non_terminals(self, base_cases):
-        while True:
-            for case in base_cases:
-                non_terminals_to_replace = list(filter(lambda x: self.is_non_terminal(x), case[1]))
-                replacements = list(filter(lambda x: x[0] in non_terminals_to_replace, base_cases))
-                for non_terminal in non_terminals_to_replace:
-                    case[1].discard(non_terminal)
-                    case[1] = case[1].union(replacements.pop()[1])
-            if self.all_non_terminals_replaced(base_cases):
-                break
         return base_cases
     
     def get_set_of_selection_for_productions(self, nullable_productions, set_of_firsts_productions, set_of_nexts):
