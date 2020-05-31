@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 class StackOperation:
@@ -19,23 +19,20 @@ class StackOperation:
                stack[0: len(stack)-1])
 
 
-# In[2]:
+# In[ ]:
 
 
 class Transition:
-    def __init__(self, name, stack_operation, advance_input_operation):
+    def __init__(self, name, stack_operation, advance):
         self.name = name
         self.stack_operation = stack_operation
-        self.advance_input_operation = advance_input_operation
+        self.advance = advance
     
     def has_stack_operation(self):
         return self.stack_operation != None
-    
-    def has_input_operation(self):
-        return self.advance_input_operation != None
 
 
-# In[3]:
+# In[ ]:
 
 
 class TransitionTable:
@@ -64,18 +61,9 @@ class TransitionTable:
         
     def insert_row(self, row):
         self.table.append(row)
-    
-    def print_table(self):
-        print(self.encoded_columns)
-        for row_symbol in self.encoded_rows:
-            row = self.get_transition_row(row_symbol)
-            row_names = ''
-            for transition in row:
-                row_names += (transition.name +' ')
-            print(row_symbol + '( ' + row_names + ')')
 
 
-# In[4]:
+# In[ ]:
 
 
 class PushDownAutomaton:
@@ -108,9 +96,8 @@ class PushDownAutomaton:
                     break
                 if transition.has_stack_operation():
                     self.stack = transition.stack_operation(self.stack)
-                if transition.has_input_operation():
-                    if transition.advance_input_operation:
-                        input_symbol = next(iterator)
+                if transition.advance:
+                    input_symbol = next(iterator)
             except StopIteration:
                 break
         return belongs

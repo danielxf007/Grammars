@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
-import PDA10 as pda
+import PDA11 as pda
 
 
-# In[2]:
+# In[ ]:
 
 
 class PDACreator:
@@ -162,23 +162,18 @@ class PDACreator:
                 break
         return ll_grammar
     
-    def get_input_symbols_PDA(self):
-        input_symbols = []
+    def get_terminals(self):
+        terminals = []
         for production in self.productions:
             for symbol in production.right_side:
-                if self.is_terminal(symbol) and not symbol in input_symbols:
-                    input_symbols.append(symbol)
+                if self.is_terminal(symbol) and not symbol in terminals:
+                    terminals.append(symbol)
+        return terminals
+                    
+    def get_input_symbols_PDA(self, terminals):
+        input_symbols = terminals.copy()
         input_symbols.append(self.end_of_sequence_symbol)
         return input_symbols
-    
-    def get_symbols_in_PDA(self):
-        symbols_in_PDA = set(self.non_terminals)
-        for production in self.productions:
-            if not self.production_has_null_sequence_on_right_side(production):
-                if len(production.right_side) >= 2:
-                    symbols_in_PDA = symbols_in_PDA.union(self.get_terminals_on_right_side(production.right_side[1:]))
-        symbols_in_PDA.add(self.empty_PDA_symbol)
-        return list(symbols_in_PDA)
     
     def get_initial_configuration_PDA(self):
         return [self.empty_PDA_symbol, self.initial_non_terminal]
@@ -310,7 +305,7 @@ class PDACreator:
                     productions_type_beta = self.get_productions_type_beta(productions_same_l_side)
                     production = self.input_symbol_in_selection_set_of_production_type_beta(input_symbol, productions_type_beta)
                     if productions_type_beta and production:
-                        beta = production.right_side
+                        beta = production.right_side.copy()
                         beta.reverse()
                         transition = pda.Transition('#' + str(n), self.stack_operations.replace_generator(beta), False)
                         transitions.append(transition)
@@ -336,17 +331,46 @@ class PDACreator:
             table.append(transitions)
         return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, table)
     
+    def is_production_terminal_alpha(self, production):
+        return self.is_terminal(production.right_side[0])
+    
+    def is_production_beta(self, production):
+        return self.is_non_terminal(production.right_side[0])
+    
+    def get_symbols_in_PDA_for_s_or_q(self, terminals):
+        symbols_in_PDA = set(self.non_terminals)
+        for terminal in terminals:
+            for production in self.productions:
+                if self.is_production_terminal_alpha(production) and len(production.right_side) >= 2:
+                    if terminal in production.right_side[1:]:
+                        symbols_in_PDA.add(terminal)
+        symbols_in_PDA.add(self.empty_PDA_symbol)
+        return list(symbols_in_PDA)
+    
+    def get_symbols_in_PDA_for_ll(self, terminals):
+        symbols_in_PDA = set(self.non_terminals)
+        for terminal in terminals:
+            for production in self.productions:
+                if self.is_production_terminal_alpha(production) and len(production.right_side) >= 2:
+                    if terminal in production.right_side[1:]:
+                        symbols_in_PDA.add(terminal)
+                elif self.is_production_beta(production) and terminal in production.right_side:
+                    symbols_in_PDA.add(terminal)
+        symbols_in_PDA.add(self.empty_PDA_symbol)
+        return list(symbols_in_PDA)
+    
     def create_PDA(self):
         push_down_automata = None
         result = []
-        input_symbols = self.get_input_symbols_PDA()
-        symbols_in_PDA = self.get_symbols_in_PDA()
+        terminals = self.get_terminals()
+        input_symbols = self.get_input_symbols_PDA(terminals)
         initial_configuration = self.get_initial_configuration_PDA()
         s_grammar = self.is_s_grammar()
         q_grammar = self.is_q_grammar()
         ll_grammar = self.is_ll_grammar()
         
         if s_grammar[0] == 0:
+            symbols_in_PDA = self.get_symbols_in_PDA_for_s_or_q(terminals)
             transition_table = self.get_transition_table_s_grammar(symbols_in_PDA, input_symbols)
             push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
                                                       initial_configuration, transition_table)
@@ -359,6 +383,7 @@ class PDACreator:
             result.append(('It is not S grammar, production is nullable: ', s_grammar[1], 3))
             
         if q_grammar[0] == 0:
+            symbols_in_PDA = self.get_symbols_in_PDA_for_s_or_q(terminals)
             transition_table = self.get_transition_table_q_grammar(symbols_in_PDA, input_symbols)
             if not push_down_automata:
                 push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
@@ -374,6 +399,7 @@ class PDACreator:
             result.append(('It is not Q grammar, selection sets of these productions are not disjoint: ', q_grammar[1], 4))
 
         if ll_grammar[0] == 0:
+            symbols_in_PDA = self.get_symbols_in_PDA_for_ll(terminals)
             transition_table = self.get_transition_table_ll_grammar(symbols_in_PDA, input_symbols)
             if not push_down_automata:
                 push_down_automata = pda.PushDownAutomaton(input_symbols, self.end_of_sequence_symbol, 'A', 'R',
