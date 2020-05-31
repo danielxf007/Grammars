@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[29]:
+# In[1]:
 
 
 class StackOperation:
@@ -19,7 +19,7 @@ class StackOperation:
                stack[0: len(stack)-1])
 
 
-# In[30]:
+# In[2]:
 
 
 class Transition:
@@ -35,15 +35,14 @@ class Transition:
         return self.advance_input_operation != None
 
 
-# In[31]:
+# In[3]:
 
 
 class TransitionTable:
     
-    def __init__(self, encoded_rows, encoded_columns, name, function_table):
+    def __init__(self, encoded_rows, encoded_columns, function_table):
         self.encoded_rows = encoded_rows
         self.encoded_columns = encoded_columns
-        self.name = name
         self.table = function_table
         
     def get_transition_row(self, row_symbol):
@@ -67,6 +66,7 @@ class TransitionTable:
         self.table.append(row)
     
     def print_table(self):
+        print(self.encoded_columns)
         for row_symbol in self.encoded_rows:
             row = self.get_transition_row(row_symbol)
             row_names = ''
@@ -75,7 +75,7 @@ class TransitionTable:
             print(row_symbol + '( ' + row_names + ')')
 
 
-# In[32]:
+# In[4]:
 
 
 class PushDownAutomaton:

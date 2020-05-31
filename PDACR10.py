@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[1]:
 
 
-import PDA9 as pda
+import PDA10 as pda
 
 
-# In[26]:
+# In[2]:
 
 
 class PDACreator:
@@ -64,18 +64,22 @@ class PDACreator:
             productions_with_numbers.append(self.productions[number])
         return productions_with_numbers
     
+    def production_starts_with_terminal(self, production):
+        return self.is_terminal(production.right_side[0])
+    
     def is_s_grammar(self):
         s_grammar = (0, None)
         for non_terminal in self.non_terminals:
             terminals = []
             productions_same_non_terminal_l_side = self.get_productions_same_non_terminal_l_side(non_terminal)
             for production in productions_same_non_terminal_l_side:
-                if self.is_terminal(production.right_side[0]):
+                if self.production_starts_with_terminal(production):
                     if not production.right_side[0] in terminals:
                         terminals.append(production.right_side[0])
                     else:
                         s_grammar = (1, self.get_productions_start_with_terminal(production.right_side[0],
                                                                                  productions_same_non_terminal_l_side))
+                        # productions with same left side start with the the same terminal
                         break
                 else:
                     if self.is_non_terminal(production.right_side[0]):
@@ -107,7 +111,7 @@ class PDACreator:
                 current_set = current_set.intersection(self.selection_set[production_numbers[index]])
                 if current_set != set():
                     sets.add(number)
-                    sets.add(self.selection_set.index(self.selection_set[production_numbers[index]]))
+                    sets.add(production_numbers[index])
                 index +=1
         return list(sets)
     
@@ -131,7 +135,7 @@ class PDACreator:
                 q_grammar = (4, list(zip(productions_with_numbers, selection_sets_with_numbers))) # selection_sets are joint
                 break
             for production in productions_same_non_terminal_l_side:
-                if self.is_terminal(production.right_side[0]):
+                if self.production_starts_with_terminal(production):
                     if not production.right_side[0] in terminals:
                         terminals.append(production.right_side[0])
                     else:
@@ -179,17 +183,21 @@ class PDACreator:
     def get_initial_configuration_PDA(self):
         return [self.empty_PDA_symbol, self.initial_non_terminal]
     
-    def transition_production_terminal_alpha(self, productions):
+    def production_terminal_alpha(self, production_same_l_side, input_symbol):
+        terminal_alpha = None
+        for production in production_same_l_side:
+            if production.right_side[0] == input_symbol:
+                terminal_alpha = production
+        return terminal_alpha
+    
+    def get_transition_production_terminal_alpha(self, production, name):
         transition = None
-        for production in productions:
-            if len(production.right_side) >= 2:
-                alpha = production.right_side[1:]
-                alpha.reverse()
-                transition = pda.Transition(None, self.stack_operations.replace_generator(alpha), True)
-                break
-            else:
-                transition = pda.Transition(None, self.stack_operations.pop_generator(), True)
-                break
+        if len(production.right_side) >= 2:
+            right_side = production.right_side[1:]
+            right_side.reverse()
+            transition = pda.Transition(name, self.stack_operations.replace_generator(right_side), True)
+        else:
+            transition = pda.Transition(name, self.stack_operations.pop_generator(), True)
         return transition
                 
     def production_null_sequence_x_in_selection_p(self, production_numbers, symbol):
@@ -200,12 +208,11 @@ class PDACreator:
                 break
         return x_in_selection_p
     
-    def get_productions_type_beta(self, non_terminal):
+    def get_productions_type_beta(self, productions_same_l_side):
         productions_type_beta = []
-        productions_same_non_terminal = self.get_productions_same_non_terminal_l_side(non_terminal)
-        for production in productions_same_non_terminal:
+        for production in productions_same_l_side:
             if self.is_non_terminal(production.right_side[0]):
-                productions_type_beta.append(self.productions.index(production))
+                productions_type_beta.append(production)
         return productions_type_beta
         
     def get_transition_table_s_grammar(self, symbols_in_PDA, input_symbols_PDA):
@@ -215,12 +222,11 @@ class PDACreator:
             transitions = []
             for input_symbol in input_symbols_PDA:
                 if self.is_non_terminal(symbol):
-                    transition = self.transition_production_terminal_alpha(self.get_productions_start_with_terminal(
-                        input_symbol, self.get_productions_same_non_terminal_l_side(symbol)))
-                    if transition:
-                        transition.name = '#' + str(n)
-                        transitions.append(transition)
-                        n += 1
+                    productions_same_l_side = self.get_productions_same_non_terminal_l_side(symbol)
+                    production = self.production_terminal_alpha(productions_same_l_side, input_symbol)
+                    if production:
+                        transitions.append(self.get_transition_production_terminal_alpha(production, '#' + str(n)))
+                        n+=1
                         continue
                 elif self.is_terminal(symbol) and symbol == input_symbol:
                     transition = pda.Transition('#' + str(n), self.stack_operations.pop_generator(), True)
@@ -234,7 +240,18 @@ class PDACreator:
                 transition = pda.Transition('R', None, None)
                 transitions.append(transition)
             table.append(transitions)
-        return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, 'S0', table)
+        return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, table)
+    
+    def production_null_sequence(self, productions):
+        prod = None
+        for production in productions:
+            if self.production_has_null_sequence_on_right_side(production):
+                prod = production
+                break
+        return prod
+    
+    def input_symbol_in_selection_set_of_production(self, input_symbol, production):
+        return input_symbol in list(self.selection_set[self.productions.index(production)])
 
     def get_transition_table_q_grammar(self, symbols_in_PDA, input_symbols_PDA):
         table = []
@@ -243,15 +260,14 @@ class PDACreator:
             transitions = []
             for input_symbol in input_symbols_PDA:
                 if self.is_non_terminal(symbol):
-                    transition = self.transition_production_terminal_alpha(self.get_productions_start_with_terminal(
-                        input_symbol, self.get_productions_same_non_terminal_l_side(symbol)))
-                    if transition:
-                        transition.name = '#' + str(n)
-                        transitions.append(transition)
-                        n += 1
+                    productions_same_l_side = self.get_productions_same_non_terminal_l_side(symbol)
+                    production = self.production_terminal_alpha(productions_same_l_side, input_symbol)
+                    if production:
+                        transitions.append(self.get_transition_production_terminal_alpha(production, '#' + str(n)))
+                        n+=1
                         continue
-                    elif self.production_null_sequence_x_in_selection_p(self.get_productions_number_same_non_terminal_l_side(
-                        self.get_productions_same_non_terminal_l_side(symbol)), input_symbol):
+                    production = self.production_null_sequence(productions_same_l_side)
+                    if production and self.input_symbol_in_selection_set_of_production(input_symbol, production):
                         transition = pda.Transition('#' + str(n), self.stack_operations.pop_generator(), False)
                         transitions.append(transition)
                         n += 1
@@ -268,13 +284,13 @@ class PDACreator:
                 transition = pda.Transition('R', None, None)
                 transitions.append(transition)
             table.append(transitions)
-        return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, 'S0', table)
+        return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, table)
     
-    def input_symbol_in_selection_set_of_production(self, production_indexes, input_symbol):
+    def input_symbol_in_selection_set_of_production_type_beta(self,  input_symbol, productions_type_beta):
         production = None
-        for index in production_indexes:
-            if input_symbol in list(self.selection_set[index]):
-                production = self.productions[index]
+        for production_beta in productions_type_beta:
+            if self.input_symbol_in_selection_set_of_production(input_symbol, production_beta):
+                production = production_beta
                 break
         return production
 
@@ -285,25 +301,24 @@ class PDACreator:
             transitions = []
             for input_symbol in input_symbols_PDA:
                 if self.is_non_terminal(symbol):
-                    transition = self.transition_production_terminal_alpha(self.get_productions_start_with_terminal(
-                        input_symbol, self.get_productions_same_non_terminal_l_side(symbol)))
-                    if transition:
-                        transition.name = '#' + str(n)
-                        transitions.append(transition)
-                        n += 1
+                    productions_same_l_side = self.get_productions_same_non_terminal_l_side(symbol)
+                    production = self.production_terminal_alpha(productions_same_l_side, input_symbol)
+                    if production:
+                        transitions.append(self.get_transition_production_terminal_alpha(production, '#' + str(n)))
+                        n+=1
                         continue
-                    elif self.production_null_sequence_x_in_selection_p(self.get_productions_number_same_non_terminal_l_side(
-                        self.get_productions_same_non_terminal_l_side(symbol)), input_symbol):
-                        transition = pda.Transition('#' + str(n), self.stack_operations.pop_generator(), False)
-                        transitions.append(transition)
-                        n += 1
-                        continue
-                    productions_type_beta = self.get_productions_type_beta(symbol)
-                    production = self.input_symbol_in_selection_set_of_production(productions_type_beta, input_symbol)
+                    productions_type_beta = self.get_productions_type_beta(productions_same_l_side)
+                    production = self.input_symbol_in_selection_set_of_production_type_beta(input_symbol, productions_type_beta)
                     if productions_type_beta and production:
                         beta = production.right_side
                         beta.reverse()
                         transition = pda.Transition('#' + str(n), self.stack_operations.replace_generator(beta), False)
+                        transitions.append(transition)
+                        n += 1
+                        continue
+                    production = self.production_null_sequence(productions_same_l_side)
+                    if production and self.input_symbol_in_selection_set_of_production(input_symbol, production):
+                        transition = pda.Transition('#' + str(n), self.stack_operations.pop_generator(), False)
                         transitions.append(transition)
                         n += 1
                         continue
@@ -319,7 +334,7 @@ class PDACreator:
                 transition = pda.Transition('R', None, None)
                 transitions.append(transition)
             table.append(transitions)
-        return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, 'S0', table)
+        return pda.TransitionTable(symbols_in_PDA, input_symbols_PDA, table)
     
     def create_PDA(self):
         push_down_automata = None
